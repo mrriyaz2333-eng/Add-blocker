@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">APP BLOCKER</string>
+
+    <string name="accessibility_description">
+        APP BLOCKER uses Accessibility permission to detect selected apps and show the blocking screen while the timer is active.
+    </string>
+
+</resources>
