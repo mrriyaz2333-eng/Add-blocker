@@ -2,6 +2,7 @@ package com.riyaz.appblocker
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.DialogInterface
 import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
@@ -15,27 +16,31 @@ import android.widget.Toast
 
 class MainActivity : Activity() {
 
-    private lateinit var status: TextView
+    private lateinit var statusText: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         if (intent.getBooleanExtra("blocked_screen", false)) {
-            showBlocked()
+            showBlockedScreen()
         } else {
-            showLogin()
+            showLoginScreen()
         }
     }
 
-    private fun createLayout(): LinearLayout {
+    private fun baseLayout(): LinearLayout {
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(32, 48, 32, 32)
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(32, 50, 32, 32)
             setBackgroundColor(Color.rgb(11, 11, 16))
         }
     }
 
-    private fun makeTitle(text: String, size: Float): TextView {
+    private fun textView(
+        text: String,
+        size: Float
+    ): TextView {
         return TextView(this).apply {
             this.text = text
             textSize = size
@@ -44,7 +49,7 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun makeButton(
+    private fun button(
         text: String,
         action: () -> Unit
     ): Button {
@@ -56,20 +61,27 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun showLogin() {
+    private fun showLoginScreen() {
 
-        val layout = createLayout()
+        val layout = baseLayout()
 
-        val title = makeTitle("APP BLOCKER", 30f)
+        val title = textView(
+            "APP BLOCKER",
+            30f
+        )
+
         title.gravity = Gravity.CENTER
         layout.addView(title)
 
         layout.addView(
-            makeTitle("Protect your focus", 16f)
+            textView(
+                "Login to continue",
+                16f
+            )
         )
 
         val username = EditText(this).apply {
-            hint = "User ID"
+            hint = "Username"
             setTextColor(Color.WHITE)
             setHintTextColor(Color.GRAY)
         }
@@ -84,58 +96,69 @@ class MainActivity : Activity() {
         layout.addView(password)
 
         layout.addView(
-            makeButton("LOGIN") {
-                showHome()
+            button("LOGIN") {
+                showHomeScreen()
             }
         )
 
         setContentView(layout)
     }
 
-    private fun showHome() {
+    private fun showHomeScreen() {
 
-        val layout = createLayout()
+        val layout = baseLayout()
 
         layout.addView(
-            makeTitle("APP BLOCKER", 28f)
+            textView(
+                "APP BLOCKER",
+                28f
+            )
         )
 
-        status = makeTitle(
-            "🟢 Protection Ready",
+        statusText = textView(
+            "🟢 Protection is OFF",
             18f
         )
 
-        layout.addView(status)
+        layout.addView(statusText)
 
         layout.addView(
-            makeButton("🚫 BLOCK AN APP") {
-                chooseDuration()
+            button("🚫 START BLOCK TIMER") {
+                showDurationDialog()
             }
         )
 
         layout.addView(
-            makeButton("🔐 ENABLE BLOCKING") {
-                startActivity(
-                    Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-                )
+            button("🔐 ACCESSIBILITY SETTINGS") {
+                try {
+                    startActivity(
+                        Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                    )
+                } catch (e: Exception) {
+                    Toast.makeText(
+                        this,
+                        "Settings open nahi ho payi",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             }
         )
 
         layout.addView(
-            makeButton("📊 STATISTICS") {
+            button("📊 STATISTICS") {
                 Toast.makeText(
                     this,
-                    "Statistics will appear here.",
+                    "Statistics feature coming soon",
                     Toast.LENGTH_SHORT
                 ).show()
             }
         )
 
         layout.addView(
-            makeButton("⚙️ SETTINGS") {
+            button("⚙️ SETTINGS") {
                 Toast.makeText(
                     this,
-                    "Settings coming next.",
+                    "Settings feature coming soon",
                     Toast.LENGTH_SHORT
                 ).show()
             }
@@ -144,7 +167,7 @@ class MainActivity : Activity() {
         setContentView(layout)
     }
 
-    private fun chooseDuration() {
+    private fun showDurationDialog() {
 
         val options = arrayOf(
             "15 Minutes",
@@ -154,44 +177,57 @@ class MainActivity : Activity() {
         )
 
         AlertDialog.Builder(this)
-            .setTitle("Choose Block Duration")
-            .setItems(options) { _, which ->
+            .setTitle("Block Duration")
+            .setItems(
+                options,
+                object : DialogInterface.OnClickListener {
 
-                val minutes = when (which) {
-                    0 -> 15
-                    1 -> 30
-                    2 -> 60
-                    else -> 120
+                    override fun onClick(
+                        dialog: DialogInterface?,
+                        which: Int
+                    ) {
+
+                        val minutes = when (which) {
+                            0 -> 15
+                            1 -> 30
+                            2 -> 60
+                            else -> 120
+                        }
+
+                        val until =
+                            System.currentTimeMillis() +
+                            (minutes * 60_000L)
+
+                        getSharedPreferences(
+                            "blocker",
+                            MODE_PRIVATE
+                        )
+                            .edit()
+                            .putLong(
+                                "until",
+                                until
+                            )
+                            .apply()
+
+                        statusText.text =
+                            "🔴 Protection ON\n${options[which]}"
+
+                        Toast.makeText(
+                            this@MainActivity,
+                            "Timer started",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
                 }
-
-                val until =
-                    System.currentTimeMillis() +
-                    minutes * 60_000L
-
-                getSharedPreferences(
-                    "blocker",
-                    MODE_PRIVATE
-                )
-                    .edit()
-                    .putLong("until", until)
-                    .apply()
-
-                status.text = "🔴 Protection ON"
-
-                Toast.makeText(
-                    this,
-                    "Timer started: ${options[which]}",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
+            )
             .show()
     }
 
-    private fun showBlocked() {
+    private fun showBlockedScreen() {
 
-        val layout = createLayout()
+        val layout = baseLayout()
 
-        val title = makeTitle(
+        val title = textView(
             "🚫 APP BLOCKED",
             30f
         )
@@ -201,92 +237,18 @@ class MainActivity : Activity() {
         layout.addView(title)
 
         layout.addView(
-            makeTitle(
-                "This app is currently blocked.\n\nFocus mode is active.",
+            textView(
+                "Focus mode is active.\n\nThis app is currently blocked.",
                 18f
             )
         )
 
         layout.addView(
-            makeButton("GO BACK") {
+            button("GO BACK") {
                 finish()
             }
         )
 
         setContentView(layout)
-    }
-}
-        l.addView(btn("⚙️ SETTINGS") {
-            Toast.makeText(
-                this,
-                "Settings coming next.",
-                Toast.LENGTH_SHORT
-            ).show()
-        })
-
-        setContentView(l)
-    }
-
-    private fun chooseDuration() {
-        val options = arrayOf(
-            "15 Minutes",
-            "30 Minutes",
-            "1 Hour",
-            "2 Hours"
-        )
-
-        AlertDialog.Builder(this)
-            .setTitle("Choose Block Duration")
-            .setItems(options) { _, which ->
-
-                val minutes = when (which) {
-                    0 -> 15
-                    1 -> 30
-                    2 -> 60
-                    else -> 120
-                }
-
-                val until =
-                    System.currentTimeMillis() +
-                    minutes * 60_000L
-
-                getSharedPreferences(
-                    "blocker",
-                    MODE_PRIVATE
-                ).edit()
-                    .putLong("until", until)
-                    .apply()
-
-                status.text = "🔴 Protection ON"
-
-                Toast.makeText(
-                    this,
-                    "Timer started: ${options[which]}",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-            .show()
-    }
-
-    private fun showBlocked() {
-        val l = layout()
-
-        val t = title("🚫 APP BLOCKED", 30f)
-        t.gravity = Gravity.CENTER
-
-        l.addView(t)
-
-        l.addView(
-            title(
-                "This app is currently blocked.\n\nFocus mode is active.",
-                18f
-            )
-        )
-
-        l.addView(btn("GO BACK") {
-            finish()
-        })
-
-        setContentView(l)
     }
 }
